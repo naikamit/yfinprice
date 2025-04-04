@@ -6,7 +6,7 @@ import logging
 import signal
 import sys
 from datetime import datetime
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, request
 import yfinance as yf
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -137,37 +137,53 @@ api_calls = {
     "last_ip": None
 }
 
+# Fixed HTML template without f-strings or JavaScript
+HTML_TOP = """<!DOCTYPE html>
+<html>
+<head>
+    <title>Stock Price Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: sans-serif; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .price-card { border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; }
+        .symbol { font-size: 24px; font-weight: bold; }
+        .price { font-size: 36px; margin: 10px 0; }
+        .refresh-button { padding: 8px 16px; background: #4a90e2; color: white; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Stock Price Dashboard</h1>
+            <div>Last updated: <span id="current-time">"""
+
+HTML_MIDDLE = """</span></div>
+        </div>
+"""
+
+HTML_BOTTOM = """        <button class="refresh-button" onclick="location.reload()">Refresh Dashboard</button>
+    </div>
+    
+    <script>
+        setTimeout(function() { 
+            location.reload(); 
+        }, 60000);
+    </script>
+</body>
+</html>"""
+
 # Flask routes
 @app.route("/")
 def dashboard():
     """Render the dashboard showing latest prices and staleness."""
     try:
         logger.info("Dashboard requested")
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
-        # Create HTML directly since we might not have a template
-        html = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Stock Price Dashboard</title>
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <style>
-                body { font-family: sans-serif; margin: 0; padding: 20px; }
-                .container { max-width: 800px; margin: 0 auto; }
-                .header { display: flex; justify-content: space-between; margin-bottom: 20px; }
-                .price-card { border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; }
-                .symbol { font-size: 24px; font-weight: bold; }
-                .price { font-size: 36px; margin: 10px 0; }
-                .refresh-button { padding: 8px 16px; background: #4a90e2; color: white; border: none; cursor: pointer; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <div class="header">
-                    <h1>Stock Price Dashboard</h1>
-                    <div>Last updated: <span id="current-time">""" + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + """</span></div>
-                </div>
-        """
+        # Build HTML in pieces to avoid f-string issues
+        html = HTML_TOP + current_time + HTML_MIDDLE
         
         # Add price cards
         for symbol in SYMBOLS:
@@ -182,37 +198,37 @@ def dashboard():
             if timestamp:
                 timestamp_text = datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
             
+            price_text = "No data"
+            if price is not None:
+                price_text = f"${price}"
+            
             html += f"""
                 <div class="price-card">
                     <div class="symbol">{symbol}</div>
-                    <div class="price">{'$' + str(price) if price else 'No data'}</div>
+                    <div class="price">{price_text}</div>
                     <div>Data is {staleness_text} old</div>
                     <div>Last fetched: {timestamp_text}</div>
                 </div>
             """
         
-        # Add API stats and close HTML
-        html += f"""
-                <div class="price-card">
-                    <h3>API Statistics</h3>
-                    <div>Total API Calls: {api_calls['total']}</div>
-                    <div>Last API Call: {'Never' if not api_calls['last_call_time'] else datetime.fromtimestamp(api_calls['last_call_time']).strftime("%Y-%m-%d %H:%M:%S")}</div>
-                    <div style="margin-top: 10px; font-family: monospace; background: #eee; padding: 10px;">
-                        API Endpoint: <code>/check</code>
-                    </div>
-                </div>
-                
-                <button class="refresh-button" onclick="location.reload()">Refresh Dashboard</button>
-            </div>
+        # Add API stats
+        api_last_call = "Never"
+        if api_calls["last_call_time"]:
+            api_last_call = datetime.fromtimestamp(api_calls["last_call_time"]).strftime("%Y-%m-%d %H:%M:%S")
             
-            <script>
-                setTimeout(function() { 
-                    location.reload(); 
-                }, 60000);
-            </script>
-        </body>
-        </html>
+        html += f"""
+            <div class="price-card">
+                <h3>API Statistics</h3>
+                <div>Total API Calls: {api_calls["total"]}</div>
+                <div>Last API Call: {api_last_call}</div>
+                <div style="margin-top: 10px; font-family: monospace; background: #eee; padding: 10px;">
+                    API Endpoint: <code>/check</code>
+                </div>
+            </div>
         """
+        
+        # Add bottom part with JavaScript (no f-strings)
+        html += HTML_BOTTOM
         
         return html
     
