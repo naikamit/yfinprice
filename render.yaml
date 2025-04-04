@@ -1,9 +1,10 @@
+# render.yaml
 services:
   - type: web
     name: stock-price-service
-    env: python
+    runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: python -m gunicorn app:app
     envVars:
       - key: FETCH_INTERVAL
         value: 5
