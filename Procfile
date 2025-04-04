@@ -1,1 +1,1 @@
-web: python3 standalone.py
+web: gunicorn app:app
