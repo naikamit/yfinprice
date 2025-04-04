@@ -1,10 +1,16 @@
 # /config.py
 # Configuration settings for the application loaded from environment variables
 import os
-from dotenv import load_dotenv
 
-# Load environment variables from .env file (for local development)
-load_dotenv()
+# Try to import dotenv, but continue if not available
+try:
+    from dotenv import load_dotenv
+    # Load environment variables from .env file (for local development)
+    load_dotenv()
+except ImportError:
+    # If python-dotenv is not available, we can still function
+    # Just log a message to the console
+    print("dotenv module not found, continuing without loading .env file")
 
 # Fetch interval in minutes
 FETCH_INTERVAL = int(os.getenv("FETCH_INTERVAL", "5"))
