@@ -37,7 +37,13 @@ def main():
     
     # Start the web server (this will block)
     logger.info(f"Starting web server on port {PORT}")
-    app.run(host="0.0.0.0", port=PORT)
+    if __name__ == "__main__":
+        app.run(host="0.0.0.0", port=PORT)
+    
+    return app
+
+# Create app instance for gunicorn
+app = main()
 
 if __name__ == "__main__":
     main()
