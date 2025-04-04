@@ -2,11 +2,32 @@
 # Flask web server for rendering dashboard and API endpoints
 from flask import Flask, jsonify, render_template, request
 from storage import get_all_prices, get_price_staleness, format_staleness
-from logger import logger
 from datetime import datetime
 import time
 import traceback
-from config import SYMBOLS
+import logging
+import os
+import sys
+
+# Set up basic logging before importing other modules
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+logger = logging.getLogger("stock_price_service")
+
+# Import configuration after logging is set up
+try:
+    from config import SYMBOLS, PORT
+except ImportError as e:
+    logger.error(f"Error importing config: {e}")
+    # Fallback configuration
+    SYMBOLS = os.getenv("SYMBOLS", "MSTR,MSTU").split(",")
+    PORT = int(os.getenv("PORT", "8000"))
+
+# Then import the rest
+from scheduler import init_scheduler
 
 # Create Flask app and point to current directory for templates
 app = Flask(__name__, template_folder=".")
@@ -109,6 +130,13 @@ def health():
     logger.debug("Health check requested")
     return jsonify({"status": "ok", "timestamp": time.time()})
 
+# Initialize the scheduler when this module is imported
+try:
+    init_scheduler()
+    logger.info("Scheduler initialized")
+except Exception as e:
+    logger.error(f"Failed to initialize scheduler: {e}")
+
 # Error handler for 404
 @app.errorhandler(404)
 def page_not_found(e):
@@ -120,3 +148,8 @@ def page_not_found(e):
 def server_error(e):
     logger.error(f"500 error: {str(e)}")
     return jsonify({"error": "Internal server error"}), 500
+
+if __name__ == "__main__":
+    # This will only run when we run this file directly
+    logger.info(f"Starting web server on port {PORT}")
+    app.run(host="0.0.0.0", port=PORT)
