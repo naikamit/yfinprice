@@ -5,6 +5,9 @@ import os
 import logging
 from apscheduler.schedulers.background import BackgroundScheduler
 import time
+import socket
+import tempfile
+import atexit
 
 # Configure logging
 log_level = os.environ.get('LOG_LEVEL', 'INFO')
@@ -43,13 +46,44 @@ def fetch_stock_prices():
     except Exception as e:
         logger.error(f"Error fetching stock prices: {e}")
 
-# Initialize the scheduler and add the job
-scheduler = BackgroundScheduler()
-scheduler.add_job(fetch_stock_prices, 'interval', minutes=fetch_interval)
-scheduler.start()
+# Use a lock file to ensure only one scheduler runs
+LOCK_FILE = os.path.join(tempfile.gettempdir(), 'stock_scheduler.lock')
 
-# Fetch initial data
-fetch_stock_prices()
+def is_scheduler_running():
+    """Check if scheduler is already running using a lock file"""
+    try:
+        # Try to create a server socket on a specific file
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.bind(LOCK_FILE)
+        # If we got here, no other process has the lock
+        return False
+    except (socket.error, OSError):
+        # Socket already in use or file exists
+        return True
+
+# Initialize the scheduler only on one worker
+scheduler = None
+if not is_scheduler_running():
+    logger.info("Starting background scheduler")
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(fetch_stock_prices, 'interval', minutes=fetch_interval)
+    scheduler.start()
+    
+    # Register cleanup function
+    def cleanup_scheduler():
+        if scheduler:
+            scheduler.shutdown()
+        try:
+            os.unlink(LOCK_FILE)
+        except (OSError, FileNotFoundError):
+            pass
+    
+    atexit.register(cleanup_scheduler)
+    
+    # Fetch initial data
+    fetch_stock_prices()
+else:
+    logger.info("Scheduler already running in another process")
 
 @app.route('/')
 def home():
