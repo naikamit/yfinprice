@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: stock-price-service
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -b 0.0.0.0:$PORT main:app
+    envVars:
+      - key: FETCH_INTERVAL
+        value: 5
+      - key: LOG_LEVEL
+        value: INFO
+      - key: SYMBOLS
+        value: MSTR,MSTU
+      - key: PYTHON_VERSION
+        value: 3.11.4
