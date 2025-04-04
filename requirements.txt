@@ -1,0 +1,5 @@
+yfinance==0.2.36
+Flask==2.3.3
+APScheduler==3.10.4
+python-dotenv==1.0.0
+gunicorn==21.2.0
