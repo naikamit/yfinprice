@@ -206,7 +206,9 @@ def dashboard():
             </div>
             
             <script>
-                setTimeout(function() { location.reload(); }, 60000);
+                setTimeout(function() { 
+                    location.reload(); 
+                }, 60000);
             </script>
         </body>
         </html>
